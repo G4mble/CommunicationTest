@@ -6,141 +6,89 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 import pp2015.team12.server.engine.MessageHandler;
-import pp2015.team12.shared.message.CharacterUpdateMsg;
-import pp2015.team12.shared.message.ChatMsg;
-import pp2015.team12.shared.message.LocInvMsg;
+import pp2015.team12.shared.communication.ReceiveThread;
+import pp2015.team12.shared.communication.SendThread;
 import pp2015.team12.shared.message.Message;
-import pp2015.team12.shared.message.MonsterListMsg;
 
-/**
- * class ClientConnection, which is compiled (wird angelegt) for each connecting
- * client and organizes the communication
- * 
- * @author Wirsig, Dominik
- */
 public class ClientConnection extends Thread
 {
-	private long				time = -1;
-	private Socket				clientsocket;
-	private ObjectInputStream	ois;
-	private ObjectOutputStream	oos;
-	private int					id;
-	private long				lastConnection	= System.currentTimeMillis();
-	private Thread				writer;
-	private Thread				isConnected;
-	// unique Id for each connection
-	private static int			ClientId;
-	private boolean				threadOpen;
-	private MessageHandler		mh;
-	// Port-Number
-	private int					port;
-	private ServerCom			serverCom;
+	private Socket clientSocket;
+	private int id;
+	private long lastConnection	= System.currentTimeMillis();
+	private Thread isConnected;
+	private static int ClientId;
+	private boolean connectionEstablished;
+	private MessageHandler mh;
+	private ServerCom serverCom;
+	private SendThread sendThread;
+	private ReceiveThread receiveThread;
 
-	/**
-	 * constructor, which assigns (zuordnen) a unique ID to each
-	 * Clientconnection and starts the accompanying (zugehoerig) Input- and
-	 * Outputstream
-	 * 
-	 * @author Wirsig, Dominik
-	 */
-	public ClientConnection(Socket clientsocket, ServerCom serverCom)
+	public ClientConnection(Socket paramClientSocket, ServerCom serverCom)
 	{
 		this.serverCom = serverCom;
-		this.clientsocket = clientsocket;
-		this.id = ++ClientId;
+		this.clientSocket = paramClientSocket;
+		this.id = ++ClientConnection.ClientId;
 		// generates Input/Output-Stream
 		try
 		{
-			this.oos = new ObjectOutputStream(clientsocket.getOutputStream());
-			System.out.println("ObjectOutputStream erzeugt");
-			this.ois = new ObjectInputStream(clientsocket.getInputStream());
-			System.out.println("ObjectInputStream erzeugt");
+			this.sendThread = new SendThread(this.clientSocket);
+			this.receiveThread = new ReceiveThread(this.clientSocket);
 		}
 		catch (IOException e)
 		{
 			System.out.println("Fehler beim Erzeugen des Input/Output Streams: " + e);
 			return;
 		}
-		this.threadOpen = true;
+		this.connectionEstablished = true;
 	}
 
-	/**
-	 * method to run the thread
-	 * @author Wirsig Dominik
-	 */
 	@Override
 	public void run()
 	{
-		while (this.threadOpen)
+		while (this.connectionEstablished)
 		{
 			try
 			{
-				System.out.println("Empfange Message");
-				sendMessage();
-//				System.out.println("Message empfangen");
+				System.out.println("Server: Empfange Message");
+				this.receiveMessage();
+				System.out.println("Server: Message empfangen");
 			}
-			catch (Exception e)
-			{}
+			catch(ReflectiveOperationException excep)
+			{
+				excep.printStackTrace();
+			}
 		}
 		killConnection();
 	}
 
-	/**
-	 * Method to send Messages to the Client 
-	 * @author Wirsig, Dominik
-	 */
-	public void getNextMessage(Message message) throws IOException
+	public void sendMessage(Message paramMessage) throws IOException
 	{
 		try
 		{
-			this.oos.writeObject(message);
-			this.oos.flush();
+			this.sendThread.sendMessage(paramMessage);
 		}
-		catch (IOException e)
+		catch (IOException ioE)
 		{
-			System.out.println("Fehler beim Schreiben der Message " + e.toString());
+			ioE.printStackTrace();
 		}
 	}
 
-	/**
-	 * method to receive messages and send them to the server
-	 * @author Wirsig, Dominik
-	 */
-	void sendMessage() throws ClassNotFoundException
+	void receiveMessage() throws ClassNotFoundException
 	{
-		try
-		{
-			Message msg;
-			msg = (Message) this.ois.readObject();
-			System.out.println("Message empfangen");
-			if(msg != null)
-				System.out.println("Monstername: " + ((MonsterListMsg) msg).getMonsterList()[0].getCharacterName());
-			else
-				System.out.println("Message null");
-			// method from Server Engine
-			this.mh.addNewMsg(msg);
-		}
-		catch (IOException f)
-		{
-			f.printStackTrace();
-			this.disconnect();
-		}
+		Message currentMessage = this.receiveThread.getNextMessage();
+		System.out.println("Message empfangen");
+		if(currentMessage != null)
+			this.serverCom.addIncomingMessage(currentMessage);
+		else
+			System.out.println("Message null");
+		// method from Server Engine
 	}
 
-	/**
-	 * method to close the ClientSocketConnection
-	 * @author Wirsig, Dominik
-	 */
 	protected void disconnect()
 	{
-		this.threadOpen = false;
+		this.connectionEstablished = false;
 	}
 
-	/**
-	 * method to check the connection of the client. If the client is 3 seconds inactive the client will be 
-	 * disconnected
-	 * @author Wirsig, Dominik
-	 */
 	public void connection()
 	{
 		isConnected = new Thread()
@@ -148,7 +96,7 @@ public class ClientConnection extends Thread
 			@Override
 			public void run()
 			{
-				while (threadOpen)
+				while (connectionEstablished)
 				{
 					if (System.currentTimeMillis() - lastConnection < 3000)
 					{
@@ -173,11 +121,6 @@ public class ClientConnection extends Thread
 		this.isConnected.start();
 	}
 
-	/**
-	 * method to close the clientConnection. After 1 second the Input/OutputStream and the ClientSockets will 
-	 * be closed 
-	 * @author Wirsig, Dominik
-	 */
 	private void killConnection()
 	{
 		long tempTime = System.currentTimeMillis();
@@ -188,22 +131,22 @@ public class ClientConnection extends Thread
 		// try to cloce the connection
 		try
 		{
-			if (this.oos != null)
-				this.oos.close();
+//			if (this.oos != null)
+//				this.oos.close();
 		}
 		catch (Exception e)
 		{}
 		try
 		{
-			if (this.ois != null)
-				this.ois.close();
+//			if (this.ois != null)
+//				this.ois.close();
 		}
 		catch (Exception e)
 		{}
 		try
 		{
-			if (this.clientsocket != null)
-				this.clientsocket.close();
+			if (this.clientSocket != null)
+				this.clientSocket.close();
 		}
 		catch (Exception e)
 		{}
@@ -216,27 +159,29 @@ public class ClientConnection extends Thread
 
 	public ObjectInputStream getObjectInputStream()
 	{
-		return this.ois;
+//		return this.ois;
+		return null;
 	}
 
 	public Socket getSocket()
 	{
-		return this.clientsocket;
+		return this.clientSocket;
 	}
 
 	public void setObjectInputStream(ObjectInputStream ois)
 	{
-		this.ois = ois;
+//		this.ois = ois;
 	}
 
 	public ObjectOutputStream getObjectOutputStream()
 	{
-		return oos;
+//		return oos;
+		return null;
 	}
 
 	public void setObjectOutputStream(ObjectOutputStream oos)
 	{
-		this.oos = oos;
+//		this.oos = oos;
 	}
 
 	int getID()

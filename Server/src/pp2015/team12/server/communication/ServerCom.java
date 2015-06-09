@@ -1,50 +1,43 @@
 package pp2015.team12.server.communication;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.io.*;
 
-import pp2015.team12.server.engine.MessageHandler;
+import pp2015.team12.shared.message.Message;
+
 
 public class ServerCom
 {
-	// Array-List for all clients
-	private ArrayList<ClientConnection>	socketlist = new ArrayList<>();
-	// Boolean, wich keeps the Server open
-	private boolean	serverOpen;
-	// Port und IP-String
-	private int	port = 6012;
+	private ArrayList<ClientConnection>	clientList = new ArrayList<>();
+	private boolean	serverIsOpen = false;
+	private final int SERVER_PORT = 6012;
+	private ArrayList<Message> incomingMessages = new ArrayList<Message>();
+	private ArrayList<Message> outgoingMessages = new ArrayList<Message>();
 
-	/**
-	 * method, which starts the Servercommunication. ServerSocket is generated
-	 * and waits (in endless-loop) for a comming ClientConnection which are used
-	 * in an unique Thread
-	 * 
-	 * @author Wirsig, Dominik
-	 */
 	public void start()
 	{
-		// ServerSocket is generated and waits for messages
 		try
 		{
-			// ServerSocket of Port is generated
-			ServerSocket serverSocket = new ServerSocket(port);
-			System.out.println("ServerSocket erzeugt an Port: " + port);
-			this.serverOpen = true;
+			// create new ServerSocket with given port
+			ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
+			this.serverIsOpen = true;
+			System.out.println("ServerSocket erzeugt an Port: " + SERVER_PORT);
 			
-			// Endless-loop, which waits for the Server to come
-			while(this.serverOpen)
+			// endless loop waiting for clients to connect
+			while(this.serverIsOpen)
 			{
 				System.out.println("Warte auf eingehende Client-Verbindung...");
-				// accepts the connection
+				
 				Socket clientSocket = serverSocket.accept();
+				
 				//TODO catch exception from ServerSocket.accept()
-		
+
 				System.out.println("Client baut Verbindung auf..." + clientSocket.getPort());
 				
 				// if we have to stop
-				if (!serverOpen)
+				if (!serverIsOpen)
 				{
 					System.out.println("Server geschlossen!");
 					break;
@@ -52,10 +45,11 @@ public class ServerCom
 				
 				// generate thread for the connection
 				System.out.println("Erzeuge Thread fuer Client-Verbindung...");
+				clientSocket.setSoTimeout(60000);
 				ClientConnection client = new ClientConnection(clientSocket, this);
 				
 				// save the connection in the array
-				this.socketlist.add(client);
+				this.clientList.add(client);
 				
 				// Start Client
 				System.out.println("Starte Client Verbindung...");
@@ -65,9 +59,9 @@ public class ServerCom
 			try
 			{
 				serverSocket.close();
-				for (int i = 0; i < socketlist.size(); ++i)
+				for (int i = 0; i < clientList.size(); ++i)
 				{
-					ClientConnection tempClient = socketlist.get(i);
+					ClientConnection tempClient = clientList.get(i);
 					try
 					{
 						tempClient.getObjectInputStream().close();
@@ -75,8 +69,7 @@ public class ServerCom
 						tempClient.getSocket().close();
 					}
 					catch (IOException ioE)
-					{
-					}
+					{}
 				}
 			}
 			catch (Exception e)
@@ -91,30 +84,18 @@ public class ServerCom
 		}
 	}
 
-	/**
-	 * method, which stops the waiting for the new ClientConnection and close
-	 * all Clients
-	 * 
-	 * @author Wirsig, Dominik
-	 */
 	public void stopSever()
 	{
-		serverOpen = false;
+		serverIsOpen = false;
 	}
 
-	/**
-	 * method, which deletes a client (who wants to end) from the ArrayList, by
-	 * replacing the Position with null
-	 * 
-	 * @author Wirsig, Dominik
-	 */
 	synchronized void remove(int id)
 	{
-		socketlist.set(id - 1, null);
+		clientList.set(id - 1, null);
 	}
-
-	public ArrayList<ClientConnection> getSocketlist()
+	
+	public synchronized void addIncomingMessage(Message paramMessage)
 	{
-		return socketlist;
+		this.incomingMessages.add(paramMessage);
 	}
 }

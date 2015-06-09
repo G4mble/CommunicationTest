@@ -29,8 +29,8 @@ public class ClientCom
 {
 	private ClientCommunication	cC;
 	private Thread	connectionCorrect;
-	private List<Message> msgIn	= new ArrayList<Message>();
-	private List<Message> msgOut = new ArrayList<Message>();
+	private List<Message> incomingMessages = new ArrayList<Message>();
+	private List<Message> outgoingMessages = new ArrayList<Message>();
 	// Port und IP-String
 	private int	port = 6012;
 	// private String ip = "proglab.informatik.uni-koeln.de";
