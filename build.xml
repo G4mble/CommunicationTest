@@ -1,0 +1,24 @@
+<project default="build">
+
+  <!-- PROPERTIES -->
+  <property name="basedir" value="." />
+  <property name="builddir" value="../server" />
+
+  <!-- BUILD -->
+  <target name="build">
+    <!-- DELETE BIN FOLDER -->
+    <delete dir="${basedir}/${builddir}/bin"/>
+
+    <!-- CREATE BIN FOLDER -->
+    <mkdir dir="${basedir}/${builddir}/bin"/>
+
+    <!-- BUILD SHARED -->
+    <!-- Um Umlaute zu erlauben einfach Wert auf encondig="UTF-8" aendern-->
+    <javac includeantruntime="false" encoding="ASCII" srcdir="${basedir}/Shared" destdir="${builddir}/bin" />
+
+    <!-- BUILD SERVER -->
+    <javac includeantruntime="false" encoding="ASCII" srcdir="${basedir}/Server" destdir="${builddir}/bin" sourcepath="${basedir}/Shared/src" />
+
+  </target>
+
+</project>
