@@ -1,13 +1,10 @@
 package pp2015.team12.server.communication;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.sun.org.apache.xerces.internal.util.SynchronizedSymbolTable;
 
 import pp2015.team12.server.engine.MessageHandler;
 import pp2015.team12.shared.communication.ReceiveThread;
@@ -18,25 +15,25 @@ import pp2015.team12.shared.message.Message;
 public class ClientConnection extends Thread
 {
 	private Socket clientSocket;
-	private int id;
-	private long lastConnection	= System.currentTimeMillis();
-	private Thread isConnected;
-	private static int ClientId;
 	private boolean connectionEstablished;
-	private MessageHandler mh;
+	private MessageHandler se1_messageHandler;
 	private ServerCom serverCom;
 	private SendThread sendThread;
 	private ReceiveThread receiveThread;
 	private Thread	sendMessage;
 	private Thread	receiveMessage;
 	private List<Message> outgoingMessages = new ArrayList<Message>();
+	private int clientID;
 
-	public ClientConnection(Socket paramClientSocket, ServerCom serverCom)
+	public ClientConnection(Socket paramClientSocket, ServerCom paramServerCom, int paramClientID, MessageHandler paramSe1_messageHandler)
 	{
-		this.serverCom = serverCom;
+		this.serverCom = paramServerCom;
+		this.se1_messageHandler = paramSe1_messageHandler;
 		this.clientSocket = paramClientSocket;
-		this.id = ++ClientConnection.ClientId;
-		// generates Input/Output-Stream
+		this.clientID = paramClientID;
+//TODO change ChatMsg to UpdateClientID		
+		this.outgoingMessages.add(new ChatMsg("UpdateClientID", -1));
+		
 		try
 		{
 			this.sendThread = new SendThread(this.clientSocket);
@@ -67,14 +64,22 @@ public class ClientConnection extends Thread
 
 	void receiveMessage() throws ClassNotFoundException
 	{
-		Message currentMessage = this.receiveThread.getNextMessage();
-		System.out.println("Message empfangen");
-		if(currentMessage != null)
-			System.out.println(((ChatMsg) currentMessage).getContent());
-//			this.serverCom.addIncomingMessage(currentMessage);
-		else
-			System.out.println("Message null");
-		// method from Server Engine
+		try
+		{
+			Message currentMessage = this.receiveThread.getNextMessage();
+			System.out.println("Message empfangen");
+			if(currentMessage != null)
+				System.out.println(((ChatMsg) currentMessage).getContent());
+//				this.se_I_MessageHandler.addNewMsg(currentMessage);
+			else
+				System.out.println("Message null");
+		}
+		catch(SocketTimeoutException stE)
+		{
+			this.disconnect();
+		}
+		catch(ClassNotFoundException | IOException excep)
+		{}
 	}
 	
 	private void startReceiving()
@@ -105,27 +110,24 @@ public class ClientConnection extends Thread
 	private void startSending()
 	{
 		System.out.println("Server: start sending");
-		receiveMessage = new Thread()
+		sendMessage = new Thread()
 		{
 			@Override
 			public void run()
 			{
+				Message currentMessage =  null;
 				while (connectionEstablished)
 				{
-					//TODO entferne testMsg
-					Message currentMessage =  new ChatMsg("Server: Ich bin noch da", -1);;
-					System.out.println("Server: erzeuge neue Msg");
 					if(outgoingMessages.size() > 0)
-					{
 						currentMessage = outgoingMessages.get(0);
-					}
-//					else
-//						currentMessage = null;
+					else
+						currentMessage = null;
 					
 					if(currentMessage != null)
 					{
 						sendMessage(currentMessage);
 					}
+					//TODO thread.sleep entfernen
 					try 
 					{
 						Thread.sleep(1000);
@@ -137,7 +139,7 @@ public class ClientConnection extends Thread
 				}
 			}
 		};
-		this.receiveMessage.start();
+		this.sendMessage.start();
 	}
 
 	protected void disconnect()
@@ -145,103 +147,60 @@ public class ClientConnection extends Thread
 		this.connectionEstablished = false;
 	}
 
-	public void connection()
-	{
-		isConnected = new Thread()
-		{
-			@Override
-			public void run()
-			{
-				while (connectionEstablished)
-				{
-					if (System.currentTimeMillis() - lastConnection < 3000)
-					{
-						try
-						{
-							Thread.sleep(500);
-							lastConnection = System.currentTimeMillis();
-						}
-						catch (InterruptedException e)
-						{
-							e.printStackTrace();
-						}
-					}
-					else
-					{
-						System.out.println("DISCONNECT");
-						disconnect();
-					}
-				}
-			}
-		};
-		this.isConnected.start();
-	}
 
 	private void killConnection()
 	{
-		long tempTime = System.currentTimeMillis();
-		while (System.currentTimeMillis() - tempTime < 1000)
-		{
-			//TODO something
-		}
-		// try to cloce the connection
+		this.sendMessage.interrupt();
+		this.receiveMessage.interrupt();
+		this.serverCom.remove(this.clientID);
+
 		try
 		{
-//			if (this.oos != null)
-//				this.oos.close();
+			if (this.sendThread != null)
+				this.sendThread.close();
 		}
-		catch (Exception e)
+		catch (IOException ioE)
 		{}
 		try
 		{
-//			if (this.ois != null)
-//				this.ois.close();
+			if (this.receiveThread != null)
+				this.receiveThread.close();
 		}
-		catch (Exception e)
+		catch (IOException ioE)
 		{}
 		try
 		{
 			if (this.clientSocket != null)
 				this.clientSocket.close();
 		}
-		catch (Exception e)
+		catch (IOException ioE)
 		{}
 		
-//		this.writer.interrupt();
-//		this.isConnected.interrupt();
-		this.serverCom.remove(this.id);
 		System.out.println("Client geschlossen!");
 	}
 
-	public ObjectInputStream getObjectInputStream()
-	{
-//		return this.ois;
-		return null;
-	}
-
-	public Socket getSocket()
+	public synchronized Socket getSocket()
 	{
 		return this.clientSocket;
 	}
 
-	public void setObjectInputStream(ObjectInputStream ois)
+	public synchronized int getClientID()
 	{
-//		this.ois = ois;
+		return this.clientID;
 	}
-
-	public ObjectOutputStream getObjectOutputStream()
+	
+	public void closeInputStream() throws IOException
 	{
-//		return oos;
-		return null;
+		this.receiveThread.close();
 	}
-
-	public void setObjectOutputStream(ObjectOutputStream oos)
+	
+	public void closeOutputStream() throws IOException
 	{
-//		this.oos = oos;
+		this.sendThread.close();
 	}
-
-	int getID()
+	
+	public synchronized void addOutgoingMessage(Message paramMessage)
 	{
-		return this.id;
+		this.outgoingMessages.add(paramMessage);
 	}
 }

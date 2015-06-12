@@ -21,4 +21,9 @@ public class SendThread
 		this.outputStream.writeObject(paramMessage);
 		this.outputStream.flush();
 	}
+	
+	public void close() throws IOException
+	{
+		this.outputStream.close();
+	}
 }

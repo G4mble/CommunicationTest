@@ -11,29 +11,23 @@ public class ReceiveThread
 {
 	private ObjectInputStream inputStream;
 	
-	public ReceiveThread(Socket paramSocket) throws IOException
+	public ReceiveThread(Socket paramClientSocket) throws IOException
 	{
-		this.inputStream = new ObjectInputStream(paramSocket.getInputStream());
+		this.inputStream = new ObjectInputStream(paramClientSocket.getInputStream());
 		System.out.println("ObjectOutputStream erzeugt");
 
 	}
 	
-	public Message getNextMessage()
+	public Message getNextMessage() throws ClassNotFoundException, SocketTimeoutException, IOException
 	{
-		try 
-		{
-			Object currentMessage = this.inputStream.readObject();
-			if(currentMessage != null)
-				return (Message) currentMessage;
-		}
-		catch(SocketTimeoutException stE)
-		{
-			System.out.println("SocketTimeoutException: disconnect client");
-		}
-		catch (ClassNotFoundException | IOException excep)
-		{
-			excep.printStackTrace();
-		}
+		Object currentMessage = this.inputStream.readObject();
+		if(currentMessage != null)
+			return (Message) currentMessage;
 		return null;
+	}
+	
+	public void close() throws IOException
+	{
+		this.inputStream.close();
 	}
 }

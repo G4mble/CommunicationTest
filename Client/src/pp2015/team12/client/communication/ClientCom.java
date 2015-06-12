@@ -2,21 +2,16 @@ package pp2015.team12.client.communication;
 
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 
 import pp2015.team12.client.ClientCommunication;
-import pp2015.team12.shared.InventoryModel;
-import pp2015.team12.shared.character.Mage;
-import pp2015.team12.shared.character.Monster;
-import pp2015.team12.shared.character.Monster_Tank;
 import pp2015.team12.shared.communication.ReceiveThread;
 import pp2015.team12.shared.communication.SendThread;
-import pp2015.team12.shared.message.CharacterUpdateMsg;
 import pp2015.team12.shared.message.ChatMsg;
-import pp2015.team12.shared.message.LocInvMsg;
+import pp2015.team12.shared.message.LogoutReplyMsg;
 import pp2015.team12.shared.message.Message;
-import pp2015.team12.shared.message.MonsterListMsg;
 
 /**
  * class ClientCom, processes the communication with the clients - send and
@@ -29,7 +24,7 @@ import pp2015.team12.shared.message.MonsterListMsg;
 
 public class ClientCom
 {
-	private ClientCommunication	cC;
+	private ClientCommunication	clientMessageHandler;
 	private Thread	sendMessage;
 	private Thread	receiveMessage;
 	private List<Message> outgoingMessages = new ArrayList<Message>();
@@ -46,7 +41,7 @@ public class ClientCom
 
 	public ClientCom(ClientCommunication cC)
 	{
-		this.cC = cC;
+		this.clientMessageHandler = cC;
 		if (connect())
 		{
 			System.out.println("Verbindung hergestellt" );
@@ -87,7 +82,6 @@ public class ClientCom
 			System.out.println("Fehler beim Erzeugen des Input/Output Streams: " + e);
 			return false;
 		}
-		// if connected return true
 		return true;
 	}
 
@@ -105,13 +99,22 @@ public class ClientCom
 
 	public void getNextMessage()
 	{
-		Message currentMessage = this.receiveThread.getNextMessage();
-		System.out.println("Message empfangen");
-		if(currentMessage != null)
-			System.out.println(((ChatMsg) currentMessage).getContent());
-//			cC.receiveMessage(currentMessage);
-		else
-			System.out.println("Message null");
+		try
+		{
+			Message currentMessage = this.receiveThread.getNextMessage();
+			System.out.println("Message empfangen");
+			if(currentMessage != null)
+			{	
+				if(currentMessage instanceof LogoutReplyMsg)
+					this.disconnect();
+				System.out.println(((ChatMsg) currentMessage).getContent());
+//				clientMessageHandler.receiveMessage(currentMessage);
+			}
+			else
+				System.out.println("Message null");
+		}
+		catch(ClassNotFoundException | IOException excep)
+		{}
 	}
 
 	private void startSendingMessage()
@@ -161,61 +164,34 @@ public class ClientCom
 		this.receiveMessage.start();
 	}
 
-	/**
-	 * method to finish the clientConnection. Thread stops after 5 seconds for possible incoming messages.
-	 * @author Wirsig, Dominik
-	 */
 	private void disconnect()
 	{
-//		// try to close the connection 
-//		long tempTime = System.currentTimeMillis();
-//		while (System.currentTimeMillis() - tempTime < 5000)
-//		{
-//			// TODO do something
-//		}
-//		try
-//		{
-//			if (oos != null)
-//				oos.close();
-//		}
-//		catch (Exception e)
-//		{}
-//		try
-//		{
-//			if (ois != null)
-//				ois.close();
-//		}
-//		catch (Exception e)
-//		{}
-//		try
-//		{
-//			if (serversocket != null)
-//				serversocket.close();
-//		}
-//		catch (Exception e)
-//		{}
+		// try to close the connection 
+		this.sendMessage.interrupt();
+		this.receiveMessage.interrupt();
+		try
+		{
+			if (this.sendThread != null)
+				this.sendThread.close();
+		}
+		catch (IOException ioE)
+		{}
+		try
+		{
+			if (this.receiveThread != null)
+				this.receiveThread.close();
+		}
+		catch (IOException ioE)
+		{}
+		try
+		{
+			if (this.serversocket != null)
+				serversocket.close();
+		}
+		catch (IOException ioE)
+		{}
 	}
 
-	public int getPort()
-	{
-		return this.port;
-	}
-
-	public void setPort(int port)
-	{
-		this.port = port;
-	}
-
-	public String getIp()
-	{
-		return this.ip;
-	}
-
-	public void setIp(String ip)
-	{
-		this.ip = ip;
-	}
-	
 	public void addOutgoingMsg(Message paramMessage)
 	{
 		this.outgoingMessages.add(paramMessage);
