@@ -10,6 +10,8 @@ import pp2015.team12.shared.InventoryModel;
 import pp2015.team12.shared.character.Mage;
 import pp2015.team12.shared.character.Monster;
 import pp2015.team12.shared.character.Monster_Tank;
+import pp2015.team12.shared.communication.ReceiveThread;
+import pp2015.team12.shared.communication.SendThread;
 import pp2015.team12.shared.message.CharacterUpdateMsg;
 import pp2015.team12.shared.message.ChatMsg;
 import pp2015.team12.shared.message.LocInvMsg;
@@ -28,8 +30,8 @@ import pp2015.team12.shared.message.MonsterListMsg;
 public class ClientCom
 {
 	private ClientCommunication	cC;
-	private Thread	connectionCorrect;
-	private List<Message> incomingMessages = new ArrayList<Message>();
+	private Thread	sendMessage;
+	private Thread	receiveMessage;
 	private List<Message> outgoingMessages = new ArrayList<Message>();
 	// Port und IP-String
 	private int	port = 6012;
@@ -37,10 +39,10 @@ public class ClientCom
 	private String ip = "localhost";
 	// socket for the connection to the server
 	private Socket serversocket	= null;
-	// OutputStream
-	private static ObjectOutputStream oos = null;
-	// InputStream
-	private static ObjectInputStream ois = null;
+	private SendThread sendThread;
+	private ReceiveThread receiveThread;
+	private long pingTimer;
+	private boolean connectionEstablished = false;
 
 	public ClientCom(ClientCommunication cC)
 	{
@@ -48,7 +50,9 @@ public class ClientCom
 		if (connect())
 		{
 			System.out.println("Verbindung hergestellt" );
-			this.connection();
+			this.connectionEstablished = true;
+			this.startSendingMessage();
+			this.startReceiving();
 		}
 		else
 			System.out.println("Verbindung fehlgeschlagen");
@@ -75,32 +79,23 @@ public class ClientCom
 		// generate Input/Output-Stream
 		try
 		{
-			ois = new ObjectInputStream(serversocket.getInputStream());
-			oos = new ObjectOutputStream(serversocket.getOutputStream());
+			this.sendThread = new SendThread(this.serversocket);
+			this.receiveThread = new ReceiveThread(this.serversocket);
 		}
-		catch (IOException eIO)
+		catch (IOException e)
 		{
-			System.out
-					.println("Fehler beim Erzeugen des Input/Output Streams: "
-							+ eIO);
+			System.out.println("Fehler beim Erzeugen des Input/Output Streams: " + e);
 			return false;
 		}
 		// if connected return true
 		return true;
 	}
 
-	/**
-	 * method to send Messages to the server
-	 * @author Wirsig, Dominik
-	 */
-	public void getNextMessage(Message message)
+	public void sendMessage(Message paramMessage)
 	{
 		try
 		{
-			System.out.println("versuche message zu senden");
-			oos.writeObject(message);
-			oos.flush();
-			System.out.println("message gesendet");
+			this.sendThread.sendMessage(paramMessage);
 		}
 		catch (IOException e)
 		{
@@ -108,54 +103,62 @@ public class ClientCom
 		}
 	}
 
-	/**
-	 * method to receive messages and send them to the client
-	 * @author Wirsig, Dominik
-	 */
-	public void sendMessage() throws ClassNotFoundException
+	public void getNextMessage()
 	{
-		try
-		{
-			Message msgOut = (Message) ois.readObject();
-			cC.receiveMessage(msgOut);
-		}
-		catch (IOException f)
-		{}
+		Message currentMessage = this.receiveThread.getNextMessage();
+		System.out.println("Message empfangen");
+		if(currentMessage != null)
+			System.out.println(((ChatMsg) currentMessage).getContent());
+//			cC.receiveMessage(currentMessage);
+		else
+			System.out.println("Message null");
 	}
 
-	/**
-	 * method to start a thread for "Ich bin noch da"-messages
-	 * @author Wirsig, Dominik
-	 */
-	private void connection()
+	private void startSendingMessage()
 	{
-		connectionCorrect = new Thread()
+		System.out.println("Client: start sending");
+		sendMessage = new Thread()
 		{
 			@Override
 			public void run()
 			{
+				Message pingMsg = new ChatMsg("Client: Ich bin noch da", -1);
+				Message currentMessage = pingMsg;
 				while (true)
 				{
-					try
+					if(outgoingMessages.size() > 0)
 					{
-						Thread.sleep(400);
-						Monster[] monsterList = {new Monster_Tank(1,"testMonster", 1, 2, "af", 12, 23, 1)};
-						System.out.println("erzeuge monster");
-						System.out.println("sende monster");
-						getNextMessage(new MonsterListMsg(monsterList, -1));
-						System.out.println("monster ist gesendet");
-						//TODO send ich bin noch da
+						currentMessage = outgoingMessages.get(0);
 					}
-					catch (InterruptedException e)
+					else if((System.currentTimeMillis() - pingTimer) >= 2000)
+						currentMessage = pingMsg;
+					else
+						currentMessage = null;
+					
+					if(currentMessage != null)
 					{
-						e.printStackTrace();
+						sendMessage(currentMessage);
+						pingTimer = System.currentTimeMillis();
 					}
-					// Message connected = new Message(7);
-					// getNextMessage(connected);
 				}
 			}
 		};
-		this.connectionCorrect.start();
+		this.sendMessage.start();
+	}
+	
+	private void startReceiving()
+	{
+		System.out.println("Client: start receiving");
+		receiveMessage = new Thread()
+		{
+			@Override
+			public void run()
+			{
+				while(connectionEstablished)
+					getNextMessage();
+			}
+		};
+		this.receiveMessage.start();
 	}
 
 	/**
@@ -164,33 +167,33 @@ public class ClientCom
 	 */
 	private void disconnect()
 	{
-		// try to close the connection 
-		long tempTime = System.currentTimeMillis();
-		while (System.currentTimeMillis() - tempTime < 5000)
-		{
-			// TODO do something
-		}
-		try
-		{
-			if (oos != null)
-				oos.close();
-		}
-		catch (Exception e)
-		{}
-		try
-		{
-			if (ois != null)
-				ois.close();
-		}
-		catch (Exception e)
-		{}
-		try
-		{
-			if (serversocket != null)
-				serversocket.close();
-		}
-		catch (Exception e)
-		{}
+//		// try to close the connection 
+//		long tempTime = System.currentTimeMillis();
+//		while (System.currentTimeMillis() - tempTime < 5000)
+//		{
+//			// TODO do something
+//		}
+//		try
+//		{
+//			if (oos != null)
+//				oos.close();
+//		}
+//		catch (Exception e)
+//		{}
+//		try
+//		{
+//			if (ois != null)
+//				ois.close();
+//		}
+//		catch (Exception e)
+//		{}
+//		try
+//		{
+//			if (serversocket != null)
+//				serversocket.close();
+//		}
+//		catch (Exception e)
+//		{}
 	}
 
 	public int getPort()
@@ -211,5 +214,10 @@ public class ClientCom
 	public void setIp(String ip)
 	{
 		this.ip = ip;
+	}
+	
+	public void addOutgoingMsg(Message paramMessage)
+	{
+		this.outgoingMessages.add(paramMessage);
 	}
 }

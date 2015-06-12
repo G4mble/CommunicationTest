@@ -113,7 +113,7 @@ public class ClientCommunication {
 				if (message instanceof LoginRequestMsg){								
 					System.out.println("Leite Login Anfrage an Server weiter");			
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 					
 				}
 				if (message instanceof LoginReplyMsg){	
@@ -132,7 +132,7 @@ public class ClientCommunication {
 				if (message instanceof LogoutRequestMsg){								
 					System.out.println("Leite Logout Anfrage an Server weiter");
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 					
 				}
 				if (message instanceof LogoutReplyMsg){								
@@ -167,13 +167,13 @@ public class ClientCommunication {
 				if(message instanceof RequestLevelChangeMsg){
 					System.out.println("Message an server");
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 					
 				}
 				if(message instanceof SalvageRequestMsg){
 					System.out.println("Message an server");
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 					 //server braucht id + player
 				}
 				if(message instanceof LocInvMsg){
@@ -183,10 +183,10 @@ public class ClientCommunication {
 					this.cE.useDoor((RequestLevelChangeMsg)message);
 				}
 				if(message instanceof RegistrationReqMsg){
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 				}
 				if(message instanceof CreateCharacterReqMsg){
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 				}
 				if(message instanceof ChooseCharacterMsg){
 					System.out.println("Weiterleiten an server");		//nicht mehr benoetigt
@@ -196,19 +196,19 @@ public class ClientCommunication {
 				}
 				if(message instanceof RequestStatisticMsg){
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 				}
 				if(message instanceof ChangedInvPosMsg){
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 				}
 				if(message instanceof UnEquipMsg){
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 				}
 				if(message instanceof EquipMsg){
 					message.setClientId(this.cE.getClientId());
-					this.cE.ClientCommunication.getNextMessage(message);
+					this.cE.ClientCommunication.sendMessage(message);
 				}
 				//crafting //buy  //sell //drop //abruesten //ruesten //Item verschieben
 				

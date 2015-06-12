@@ -102,7 +102,7 @@ public class ClientEngine {
 						player.setPosX(message.getnPosX());
 						player.setPosY(message.getnPosY());
 						System.out.println("Sende Nachricht an Server");
-						this.ClientCommunication.getNextMessage(message);
+						this.ClientCommunication.sendMessage(message);
 //						System.out.println("Empfange Bestaetigung von Server");
 //						this.Gui.feld.repaint();
 					}
@@ -118,7 +118,7 @@ public class ClientEngine {
 						player.setPosX(message.getnPosX());
 						player.setPosY(message.getnPosY());
 						System.out.println("Sende Nachricht an Server");
-						this.ClientCommunication.getNextMessage(message);
+						this.ClientCommunication.sendMessage(message);
 //						System.out.println("Empfange Bestaetigung von Server");
 //						this.Gui.feld.repaint();
 					}
@@ -135,7 +135,7 @@ public class ClientEngine {
 						player.setPosX(message.getnPosX());
 						player.setPosY(message.getnPosY());
 						System.out.println("Sende Nachricht an Server");
-						this.ClientCommunication.getNextMessage(message);
+						this.ClientCommunication.sendMessage(message);
 //						System.out.println("Empfange Bestaetigung von Server");
 //						this.Gui.feld.repaint();
 					}
@@ -149,7 +149,7 @@ public class ClientEngine {
 						player.setPosX(message.getnPosX());
 						player.setPosY(message.getnPosY());
 						System.out.println("Sende Nachricht an Server");
-						this.ClientCommunication.getNextMessage(message);
+						this.ClientCommunication.sendMessage(message);
 //						System.out.println("Empfange Bestaetigung von Server");
 //						this.Gui.feld.repaint();
 					}
@@ -209,7 +209,7 @@ public class ClientEngine {
 			for(Monster next: inRange){
 				message.setClientId(this.clientId);
 				message.setMonsterPos(new Coordinate(next.getPosX(),next.getPosY()));
-				this.ClientCommunication.getNextMessage(message);
+				this.ClientCommunication.sendMessage(message);
 			}
 		}
 	}
@@ -259,7 +259,7 @@ public class ClientEngine {
 			System.out.println("Nachicht an server mit Item das aufgehoben werden soll");
 			((PickUpMsg)message).setPos(new Coordinate(inRange.get(0).getXPos(),inRange.get(0).getYPos()));
 			message.setClientId(this.clientId);
-			this.ClientCommunication.getNextMessage(message);
+			this.ClientCommunication.sendMessage(message);
 		}else{
 			ItemModel nearest = inRange.get(0);
 			
@@ -273,7 +273,7 @@ public class ClientEngine {
 			System.out.println("Nachricht an Server mit Item das am naechsten zum Spieler liegt"); //Itempos + Client
 			((PickUpMsg)message).setPos(new Coordinate(nearest.getXPos(),nearest.getYPos()));
 			message.setClientId(this.clientId);
-			this.ClientCommunication.getNextMessage(message);
+			this.ClientCommunication.sendMessage(message);
 		}
 	}
 	
@@ -322,7 +322,7 @@ public class ClientEngine {
 					((RequestLevelChangeMsg)message).setClientId(this.clientId);
 					((RequestLevelChangeMsg)message).setTextureId((map[next.getPosX()/this.textureWidth][next.getPosY()/this.textureWidth]).getImageID());
 					((RequestLevelChangeMsg)message).setCurrentLevelId(player.getLevelId());
-					this.ClientCommunication.getNextMessage(message);
+					this.ClientCommunication.sendMessage(message);
 					break;
 				}
 			}
@@ -435,12 +435,12 @@ public class ClientEngine {
 	public void checkCheat(ChatMsg message){
 		if(message.getContent().equals("#yolo")){
 			System.out.println("unendlich leben - sende Nachricht an Server");
-			this.ClientCommunication.getNextMessage(new YoloMsg(this.clientId));
+			this.ClientCommunication.sendMessage(new YoloMsg(this.clientId));
 			
 		}
 		else if (message.getContent().equals("#swag")){
 			System.out.println("10000 Gold - sende Nachricht an Server");
-			this.ClientCommunication.getNextMessage(new SwagMsg(this.clientId));
+			this.ClientCommunication.sendMessage(new SwagMsg(this.clientId));
 		}
 		else if(message.getContent().equals("#nofilter")){
 			System.out.println("setze Sichtweite hoch");
@@ -450,10 +450,10 @@ public class ClientEngine {
 			System.out.println("setze Sichtweite runter");
 			this.farsight= false;
 		}else{
-			this.ClientCommunication.getNextMessage(message);
+			this.ClientCommunication.sendMessage(message);
 			System.out.println("Kein Cheat - Leite ChatNachricht an server weiter");
 			message.setClientId(this.clientId);
-			this.ClientCommunication.getNextMessage(message);
+			this.ClientCommunication.sendMessage(message);
 		
 		}
 		
@@ -836,7 +836,7 @@ public class ClientEngine {
 		System.out.println("Nachricht an der Server mit Item das benutzt werden soll");
 		message.setClientId(this.clientId);								
 		
-		this.ClientCommunication.getNextMessage(message);
+		this.ClientCommunication.sendMessage(message);
 		}
 	/**
 	 * set the loginstatus

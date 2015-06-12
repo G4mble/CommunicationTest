@@ -10,9 +10,9 @@ public class SendThread
 {
 	private ObjectOutputStream outputStream;
 	
-	public SendThread(Socket paramClientSocket) throws IOException
+	public SendThread(Socket paramSocket) throws IOException
 	{
-		this.outputStream = new ObjectOutputStream(paramClientSocket.getOutputStream());
+		this.outputStream = new ObjectOutputStream(paramSocket.getOutputStream());
 		System.out.println("ObjectOutputStream erzeugt");
 	}
 	

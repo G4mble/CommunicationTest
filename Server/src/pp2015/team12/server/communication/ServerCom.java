@@ -33,6 +33,7 @@ public class ServerCom
 				Socket clientSocket = serverSocket.accept();
 				
 				//TODO catch exception from ServerSocket.accept()
+				//TODO clientID zuweisen
 
 				System.out.println("Client baut Verbindung auf..." + clientSocket.getPort());
 				
@@ -50,10 +51,6 @@ public class ServerCom
 				
 				// save the connection in the array
 				this.clientList.add(client);
-				
-				// Start Client
-				System.out.println("Starte Client Verbindung...");
-				client.start();
 			}
 			// when cancellation, close all clients
 			try
